@@ -11,7 +11,8 @@ const generateAccessAndRefreshTokens = async (userId) => {
     const refreshToken = user.generateRefreshToken();
 
     user.refreshToken = refreshToken;
-    user.save({ validateBeforeSave: false }); //disabling validation so that token can be save w/o req. fields(i.e, password, email)
+    // console.log("rt:", refreshToken);
+    await user.save({ validateBeforeSave: false }); //disabling validation so that token can be save w/o req. fields(i.e, password, email)
     return { accessToken, refreshToken };
   } catch (error) {
     throw new ApiError(
@@ -108,7 +109,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     $or: [{ username }, { email }],
   });
-  if (user) {
+  if (!user) {
     throw new ApiError(404, "user does not exist");
   }
 
@@ -120,7 +121,7 @@ const loginUser = asyncHandler(async (req, res) => {
   const { accessToken, refreshToken } = await generateAccessAndRefreshTokens(
     user._id
   );
-
+  // console.log(accessToken, refreshToken);
   const loggedInUser = await User.findById(user._id).select(
     " -password -refreshToken "
   );
