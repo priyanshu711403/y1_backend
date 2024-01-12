@@ -153,8 +153,8 @@ const logoutUser = asyncHandler(async (req, res) => {
   await User.findByIdAndUpdate(
     req.user._id,
     {
-      $set: {
-        refreshToken: undefined,
+      $unset: {
+        refreshToken: 1, //removes field from document
       },
     },
     {
@@ -245,7 +245,7 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 const getCurrentUser = asyncHandler(async (req, res) => {
   return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully");
+    .json(new ApiResponse(200, req.user, "current user fetched successfully"));
 });
 //---------
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -275,6 +275,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     throw new ApiError(400, "Avatar file is missing");
   }
   const avatar = await uploadOnCloudinary(avatarLocalPath);
+  // console.log(avatar);
   if (!avatar.url)
     throw new ApiError(400, "error while uploading avatar on cloudinary");
 
@@ -287,7 +288,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select("-password");
-
+  //delete the old avatar
   const oldAvatar = req.user.avatar;
   const deleteAvatarResponse = await deleteFromCloudinary(oldAvatar);
   if (!deleteAvatarResponse)
@@ -306,6 +307,11 @@ const updateUserCoverImage = asyncHandler(async (req, res) => {
   const coverImage = await uploadOnCloudinary(coverImageLocalPath);
   if (!coverImage.url)
     throw new ApiError(400, "error while uploading cover aImage on cloudinary");
+  //delete the old cover image
+  const oldCoverImage = req.user.coverImage;
+  const deleteCoverImageResponse = await deleteFromCloudinary(oldCoverImage);
+  if (!deleteCoverImageResponse)
+    throw new ApiError(500, "error while deleting old avatar from cloudinary");
 
   const user = await User.findByIdAndUpdate(
     req.user?._id,
@@ -350,7 +356,7 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
     {
       $addFields: {
         subscribersCount: { $size: "$subscribers" },
-        channelsSubscribedToCount: { $size: "subscribedTo" },
+        channelsSubscribedToCount: { $size: "$subscribedTo" },
         isSubscribed: {
           $cond: {
             if: { $in: [req.user?._id, "$subscribers.subscriber"] },
@@ -377,24 +383,26 @@ const getUserChannelProfile = asyncHandler(async (req, res) => {
 
   return res
     .status(200)
-    .json(200, channel[0], "user channel info fetched successfully");
+    .json(
+      new ApiResponse(200, channel[0], "user channel info fetched successfully")
+    );
 });
 //--------------------
 const getWatchHistory = asyncHandler(async (req, res) => {
-  const user = User.aggregate([
+  const user = await User.aggregate([
     {
       $match: { _id: new mongoose.Types.ObjectId(req.user._id) },
     },
     {
       $lookup: {
-        from: "$videos",
+        from: "videos",
         localField: "watchHistory",
         foreignField: "_id",
         as: "watchHistory",
         pipeline: [
           {
             $lookup: {
-              from: "$users",
+              from: "users",
               localField: "owner",
               foreignField: "_id",
               as: "owner",
@@ -431,6 +439,7 @@ const getWatchHistory = asyncHandler(async (req, res) => {
       )
     );
 });
+//-------------------------------------------------
 export {
   registerUser,
   loginUser,
