@@ -14,7 +14,7 @@ const uploadOnCloudinary = async (localFilePath) => {
     const response = await cloudinary.uploader.upload(localFilePath, {
       resource_type: "auto",
     });
-    // file has been uploaded successfull
+    // file has been uploaded successful
     // console.log("file is uploaded on cloudinary ", response.url);
     fs.unlinkSync(localFilePath);
     return response;
@@ -31,10 +31,16 @@ const deleteFromCloudinary = async (fileUrl) => {
     const i = fileUrl.lastIndexOf("/");
     const j = fileUrl.lastIndexOf(".");
     const publicId = fileUrl.substring(i + 1, j);
-    const res = await cloudinary.uploader.destroy(publicId);
+    const resourceType = fileUrl.indexOf("image") > 0 ? "image" : "video";
+
+    const res = await cloudinary.uploader.destroy(publicId, {
+      resource_type: resourceType,
+    });
+    if (res.result == "not found") return false;
     return res;
   } catch (error) {
     console.log(error);
+    return error;
   }
 };
 
