@@ -125,6 +125,7 @@ const getVideoById = asyncHandler(async (req, res) => {
     {
       $match: {
         _id: new Types.ObjectId(videoId),
+        owner: req.user._id,
       },
     },
     {
